@@ -13,6 +13,7 @@ app.use(cors());
 app.use(bodyparser.json());
 
 const Users = require('./models/user');
+const Msg = require('./models/msg');
 const { Sequelize } = require('sequelize');
 
 function isStrValid(str) {
@@ -77,6 +78,53 @@ app.post('/login', async (req, res, next) => {
     }
 });
 
+async function authenticate(req,res,next) {
+    try {
+        const token = req.header('Authorization');
+        console.log(token);
+        
+        if (!token) {
+            throw new Error('Authorization token missing');
+        }
+        
+        const user = jwt.verify(token, process.env.JWT_SECRET);
+        console.log(user.userId);
+
+        const foundUser = await Users.findByPk(user.userId); // Wait for the user lookup
+        if (!foundUser) {
+            throw new Error('User not found'); // Handle if user is not found
+        }
+
+        console.log(JSON.stringify(foundUser));
+        req.user = foundUser; // Assign the user to the request for global use
+        next();
+    } catch (err) {
+        console.log(err);
+        return res.status(401).json({ success: false });
+    }
+
+} ;
+
+app.post('/chat', authenticate, async(req,res,next)=>{
+    try{
+        const {msg} = req.body;
+
+        const chatData = await Msg.create({
+            message : msg,
+            senderName: req.user.name,
+            SignUpId: req.user.id
+
+        })
+        res.status(201).json({ msgg: chatData });
+
+    }catch (error) {
+        res.status(500).json({ message: error });
+    }
+});
+
+
+Msg.belongsTo(Users, { constraints: true, onDelete: 'CASCADE' });
+Users.hasMany(Msg);
 
 sequelize.sync()
     .then(()=>{
