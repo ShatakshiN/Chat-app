@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function sendUserData(event) {
         event.preventDefault();
         const name = event.target.name.value;
-        const email = event.target.mail.value; 
+        const email = event.target.email.value; 
         const password = event.target.password.value;
         const contactNo = event.target.contact.value;
 

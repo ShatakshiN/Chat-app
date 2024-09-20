@@ -1,6 +1,7 @@
 const http = require('http');
 const express = require('express');
 const app = express();
+const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const bodyparser = require('body-parser');
@@ -18,7 +19,7 @@ function isStrValid(str) {
     return (str === undefined || str.length === 0);
 };
 
-router.post('/signUp', async (req, res, next) => {
+app.post('/signUp', async (req, res, next) => {
     try {
         const { name, email, password, contactNo } = req.body;
         console.log('backend', { name, email, password, contactNo });
@@ -34,7 +35,7 @@ router.post('/signUp', async (req, res, next) => {
         }
 
         bcrypt.hash(password, 10, async (error, hash) => { 
-            await Users.create({ name, email, passWord: hash , contactNo });
+            await Users.create({ name, email, passWord: hash , contact: contactNo });
         });
 
         return res.status(201).json({ msg: "sign up successful" });
@@ -42,6 +43,40 @@ router.post('/signUp', async (req, res, next) => {
         return res.status(500).json({ error: error.message });
     }
 });
+
+function generateAccessToken(id) {
+    return jwt.sign({ userId: id }, process.env.JWT_SECRET);
+};
+
+app.post('/login', async (req, res, next) => {
+    try {
+        const { email, password } = req.body;
+
+        if (isStrValid(email) || isStrValid(password)) {
+            return res.status(400).json({ message: "bad parameters" });
+        }
+
+        const loginCredentials = await Users.findAll({ where: { email } });
+
+        if (loginCredentials.length > 0) {
+            bcrypt.compare(password, loginCredentials[0].passWord, (err, result) => {
+                if (err) {
+                    res.status(500).json({ msg: "something went wrong" });
+                }
+                if (result === true) {
+                    res.status(200).json({ msg: "user logged in successfully", token: generateAccessToken(loginCredentials[0].id) });
+                } else {
+                    return res.status(400).json({ msg: 'password incorrect' });
+                }
+            });
+        } else {
+            return res.status(404).json({ msg: "user doesn't exist" });
+        }
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
+    }
+});
+
 
 sequelize.sync()
     .then(()=>{
