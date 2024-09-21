@@ -80,7 +80,7 @@ app.post('/login', async (req, res, next) => {
 
 async function authenticate(req,res,next) {
     try {
-        const token = req.header('Authorization');
+        const token = req.header('auth-token');
         console.log(token);
         
         if (!token) {
@@ -105,7 +105,26 @@ async function authenticate(req,res,next) {
 
 } ;
 
-app.post('/chat', authenticate, async(req,res,next)=>{
+app.get('/user/all-users', authenticate, async (req, res, next) => {
+    try {
+        const users = await Users.findAll();
+        res.status(200).json({ users });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/message/get-messages', authenticate, async (req, res, next) => {
+    try {
+        const messages = await Msg.findAll({ include: Users });
+        res.status(200).json({ messages, id: req.user.id });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+/* app.post('message/add-message', authenticate, async(req,res,next)=>{
     try{
         const {msg} = req.body;
 
@@ -121,6 +140,28 @@ app.post('/chat', authenticate, async(req,res,next)=>{
         res.status(500).json({ message: error });
     }
 });
+ */
+
+app.post('/message/add-message', authenticate, async (req, res, next) => {
+    try {
+        const { message } = req.body;
+
+        if (!message) {
+            return res.status(400).json({ error: "Message content cannot be empty" });
+        }
+
+        const newMessage = await Msg.create({
+            message: message,
+            senderName: req.user.name,
+            SignUpId: req.user.id
+        });
+
+        res.status(201).json({ msg: "Message sent", message: newMessage });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 
 
 Msg.belongsTo(Users, { constraints: true, onDelete: 'CASCADE' });
