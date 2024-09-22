@@ -6,6 +6,8 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const bodyparser = require('body-parser');
 const sequelize = require('./util/db');
+const { Op } = require('sequelize');
+
 
 require('dotenv').config();
 
@@ -116,11 +118,20 @@ app.get('/user/all-users', authenticate, async (req, res, next) => {
 
 app.get('/message/get-messages', authenticate, async (req, res, next) => {
     try {
-        const messages = await Msg.findAll({ include: Users });
-        res.status(200).json({ messages, id: req.user.id });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+        const id = req.query.id;
+        const result = await Msg.findAll({where :{
+            id : {
+                [Op.gt] : id
+            }
+        }});
+        
+        return res.json({success : true , messages : result , id : req.user.id})
+    } catch (e) {
+        console.log(e)
+        return res.status(500).json({ success: false, msg: "Internal server error" })
+
     }
+
 });
 
 

@@ -22,7 +22,7 @@ body, html {
 .message {
     margin-bottom: 10px;
 }
-.message.sent {
+.send-messages {
     text-align: right;
 }
 .chat-footer {

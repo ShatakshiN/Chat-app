@@ -1,20 +1,21 @@
 const messagesContainer = document.querySelector('.chat-messages');
-const chatInput = document.getElementById('chatSend');
 const sendButton = document.querySelector('.btn.btn-primary');
-
+const messageInput = document.getElementById('chatSend');
 window.addEventListener('load', renderElements);
 
 setInterval(async () => {
     await renderElements();
 }, 4000);
 
-
 async function renderElements() {
     try {
-        messagesContainer.innerHTML = ''; // Clear the chat messages container
+        let messages = [];
+        if (localStorage.getItem('messages')) {
+            messages = JSON.parse(localStorage.getItem('messages'));
+        }
 
         if (!localStorage.getItem('token')) {
-            window.location = 'login.html'; // Redirect to login if token not found
+            window.location = 'login.html';
         }
 
         const p1 = axios.get('http://localhost:4000/user/all-users', {
@@ -23,121 +24,89 @@ async function renderElements() {
             }
         });
 
-        const p2 = axios.get('http://localhost:4000/message/get-messages', {
+        const last = messages.length === 0 ? 0 : messages[messages.length - 1].id;
+        const p2 = axios.get(`http://localhost:4000/message/get-messages?id=${last}`, {
             headers: {
                 'auth-token': localStorage.getItem('token')
             }
         });
 
-        const [res, messages] = await Promise.all([p1, p2]);
-        console.log(res);
-        console.log(messages);
+        const [res, res2] = await Promise.all([p1, p2]);
 
-        // Display users
-        res.data.users.forEach(user => {
+        // Clear previous messages and add "You joined" message
+        messagesContainer.innerHTML = '';
+        const joinDiv = document.createElement('div');
+        joinDiv.textContent = 'You joined';
+        joinDiv.className = 'u-joined';
+        messagesContainer.appendChild(joinDiv);
+
+        // Show users who are logged in
+        const users = res.data.users;
+        users.forEach(user => {
             showUser(user);
         });
 
-        const id = messages.data.id;
+        // Update messages with new ones from the backend
+        messages = [...messages, ...res2.data.messages];
+        localStorage.setItem('messages', JSON.stringify(messages));
 
-        // Display messages
-        messages.data.messages.forEach(message => {
-            showMessage(message, id === message.userId);
+        const currentUserId = res2.data.id;
+        messages.forEach(message => {
+            showMessage(message, currentUserId === message.SignUpId, users);
         });
+
+        // Scroll to the bottom of the chat
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
     } catch (e) {
-        console.log(e);
+        console.error(e);
     }
 }
 
 function showUser(user) {
-    const div = document.createElement('div');
-    div.textContent = user.name + ' joined';
-    div.className = 'u-joined bg-white p-2 rounded shadow-sm mb-2';
-    messagesContainer.appendChild(div);
+    const userDiv = document.createElement('div');
+    userDiv.textContent = user.name + ' joined';
+    userDiv.className = 'u-joined bg-white p-2 rounded shadow-sm';
+    messagesContainer.appendChild(userDiv);
 }
 
-function showMessage(data, isUser) {
+function showMessage(data, isCurrentUser, users) {
     const messageDiv = document.createElement('div');
-    messageDiv.classList.add('message');
-
-    const messageContent = document.createElement('div');
-    messageContent.classList.add('p-2', 'rounded', 'shadow-sm');
-
-    if (isUser) {
-        messageDiv.classList.add('sent');
-        messageContent.classList.add('bg-dark', 'text-white' ,'p-2' ,'rounded', 'shadow-sm');
-        messageContent.textContent = "You: " + data.message;
+    if (isCurrentUser) {
+        messageDiv.className = 'u-msg bg-white p-2 rounded shadow-sm';
+        messageDiv.textContent = "You: " + data.message;
     } else {
-        messageContent.classList.add('bg-white', 'text-dark','p-2' ,'rounded', 'shadow-sm' );
-        messageContent.textContent = data.senderName + ": " + data.message;
+        messageDiv.className = 'bg-dark text-white p-2 rounded shadow-sm';
+        const user = users.find(user => user.id === data.SignUpId);
+        
+        if (user) {
+            messageDiv.textContent = user.name + ": " + data.message;
+        } else {
+            console.warn(`User not found for message: ${data.message}`);
+            messageDiv.textContent = "Unknown user: " + data.message; // Fallback
+        }
     }
-
-    messageDiv.appendChild(messageContent);
     messagesContainer.appendChild(messageDiv);
-
-    // Scroll to the latest message
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
-// Send message handler
+
 sendButton.addEventListener('click', sendMessage);
 
 async function sendMessage(e) {
     try {
         e.preventDefault();
-        const messageText = chatInput.value.trim();
-        if (messageText === '') return;
-
-        const data = { message: messageText };
-
+        const data = { message: messageInput.value };
         const res = await axios.post('http://localhost:4000/message/add-message', data, {
             headers: {
                 'auth-token': localStorage.getItem('token')
             }
         });
 
-        console.log(res);
-        showMessage({ message: messageText }, true);
-        chatInput.value = ''; // Clear input field
+        // Display the sent message
+        showMessage(data, true);
+        //e.target.msgData.value = '';
+        message: messageInput.value = "";
     } catch (e) {
-        console.log(e);
+        console.error(e);
     }
 }
-
-
-/* document.addEventListener('DOMContentLoaded', () => {
-    const sendButton = document.querySelector('.btn-primary');
-    const chatInput = document.querySelector('#chatSend');
-    const chatMessages = document.querySelector('.chat-messages');
-
-    sendButton.addEventListener('click', sendData);
-
-    async function sendData(event) {
-        event.preventDefault();  // Prevent form submission behavior
-
-        const msg = chatInput.value;  // Get the message value from the input
-
-        if (!msg.trim()) return;  // Avoid sending empty messages
-
-        const token = localStorage.getItem('token');  // Get token from local storage
-        if (!token) {
-            console.log('Token missing');
-            return;
-        }
-
-        try {
-            const response = await axios.post('http://localhost:4000/chat', { msg }, {
-                headers: { 'Authorization': token }
-            });
-            console.log(response.data.msgg);  // Response from the server
-
-            chatInput.value = '';  // Clear input after sending message
-             
-        } catch (error) {
-            console.error('Error sending message', error);
-        }
-    }
-
- 
-});
- */
