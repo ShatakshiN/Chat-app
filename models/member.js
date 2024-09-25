@@ -12,7 +12,7 @@ const Member = sequelize.define('member', {
         type : Sequelize.BOOLEAN,
         defaultValue : false
     },
-    creator : {
+    createdBy : {
         type : Sequelize.BOOLEAN,
         defaultValue : false
     }

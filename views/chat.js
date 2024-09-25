@@ -212,3 +212,34 @@ createGroupForm.addEventListener('submit', async (e) => {
         alert('Failed to create group. Please try again.');
     }
 });
+
+async function loadSidebar() {
+    try {
+        const res = await axios.get('http://localhost:4000/groups', {
+            headers: {
+                'auth-token': localStorage.getItem('token')
+            }
+        });
+
+        const groups = res.data.groups;
+        const chatList = document.querySelector('.list-group');
+        chatList.innerHTML = '';  // Clear previous list
+
+        // Append groups to the sidebar
+        groups.forEach(group => {
+            const groupItem = document.createElement('a');
+            groupItem.href = '#';  // Link to the group chat (we'll implement it next)
+            groupItem.className = 'list-group-item list-group-item-action';
+            groupItem.textContent = group.name;
+
+            groupItem.addEventListener('click', () => loadGroupChat(group.id));
+
+            chatList.appendChild(groupItem);
+        });
+    } catch (error) {
+        console.error('Error loading groups:', error);
+    }
+}
+
+window.addEventListener('load', loadSidebar);
+

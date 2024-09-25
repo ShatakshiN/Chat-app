@@ -118,7 +118,7 @@ app.get('/user/all-users', authenticate, async (req, res, next) => {
     }
 });
 
-app.get('/message/get-messages', authenticate, async (req, res, next) => {
+/* app.get('/message/get-messages', authenticate, async (req, res, next) => {
     try {
         const id = req.query.id;
         const result = await Msg.findAll({where :{
@@ -135,7 +135,7 @@ app.get('/message/get-messages', authenticate, async (req, res, next) => {
     }
 
 });
-
+ */
 
 /* app.post('message/add-message', authenticate, async(req,res,next)=>{
     try{
@@ -155,7 +155,7 @@ app.get('/message/get-messages', authenticate, async (req, res, next) => {
 });
  */
 
-app.post('/message/add-message', authenticate, async (req, res, next) => {
+/* app.post('/message/add-message', authenticate, async (req, res, next) => {
     try {
         const { message } = req.body;
 
@@ -173,20 +173,43 @@ app.post('/message/add-message', authenticate, async (req, res, next) => {
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
-});
+}); */
 
 app.post('/createGroup', authenticate, async(req,res,next)=>{
     try{
         const name = req.body.groupName;
+        const {members, admins} = req.body;
         // console.log(req.user.name)
        const group  =await Group.create({name : name , admin : true})
-       const member = await req.user.addGroup(group , {through : {admin : true}})
-       return res.json({group , member})
+       //const member = await req.user.addGroup(group , {through : {admin : true}})
+
+       //return res.json({group , member})
+        // Add the current user as admin
+        await req.user.addGroup(group, { through: { admin: true } });
+
+        // Add selected members to the group
+        for (const memberId of members) {
+            const member = await Users.findByPk(memberId);
+            await member.addGroup(group, { through: { admin: admins.includes(memberId) } });
+        }
+
+        return res.json({ success: true, group });
     }catch(e){
         console.log(e)
         return res.status(500).json({success : false , msg :"Internal server error"})
     }
 })
+
+app.get('/groups', authenticate, async (req, res) => {
+    try {
+        const groups = await req.user.getGroups();  // Get groups for the logged-in user
+        res.json({ success: true, groups });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ success: false, msg: "Failed to fetch groups" });
+    }
+});
+
 
 
 Users.belongsToMany(Group , {through : Member})
