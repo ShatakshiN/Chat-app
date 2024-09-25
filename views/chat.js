@@ -1,6 +1,8 @@
 const messagesContainer = document.querySelector('.chat-messages');
 const sendButton = document.querySelector('.btn.btn-primary');
 const messageInput = document.getElementById('chatSend');
+let selectedGroupId = null;  // This will store the currently selected group ID
+
 /* window.addEventListener('load', renderElements);
 
 setInterval(async () => {
@@ -110,6 +112,47 @@ sendButton.addEventListener('click', sendMessage); */
         console.error(e);
     }
 } */
+sendButton.addEventListener('click', async () => {
+    const messageContent = messageInput.value;
+    //if (!messageContent) return;
+    if (!messageContent || !selectedGroupId) return;  // Ensure a group is selected
+
+    //const groupId = /* the selected group's ID */;
+    const localStorageKey = `group_${selectedGroupId}_messages`;
+
+    try {
+        // Step 1: Send the message to the backend
+        const response = await axios.post(`http://localhost:4000/groups/${selectedGroupId}/send-message`, {
+            content: messageContent
+        }, {
+            headers: {
+                'auth-token': localStorage.getItem('token')
+            }
+        });
+
+        const newMessage = response.data.message;
+
+        // Step 2: Save the new message to local storage
+        let storedMessages = JSON.parse(localStorage.getItem(localStorageKey)) || [];
+        storedMessages.push(newMessage);
+
+        // Keep only the most recent 10 messages
+        if (storedMessages.length > 10) {
+            storedMessages = storedMessages.slice(-10);
+        }
+
+        localStorage.setItem(localStorageKey, JSON.stringify(storedMessages));
+
+        // Step 3: Display the new message in the chat window
+        displayMessages(storedMessages);
+
+        // Clear the input field
+        messageInput.value = '';
+    } catch (error) {
+        console.error('Error sending message:', error);
+    }
+});
+
 
 const createGroupForm = document.getElementById('createGroupForm');
 const membersList = document.getElementById('membersList');
@@ -243,3 +286,60 @@ async function loadSidebar() {
 
 window.addEventListener('load', loadSidebar);
 
+async function loadGroupChat(groupId) {
+    selectedGroupId = groupId;
+    const localStorageKey = `group_${groupId}_messages`;
+
+    // Step 1: Load last 10 messages from local storage
+    let storedMessages = JSON.parse(localStorage.getItem(localStorageKey)) || [];
+    displayMessages(storedMessages);
+
+    try {
+        // Step 2: Fetch new messages from backend
+        const res = await axios.get(`http://localhost:4000/groups/${groupId}/recent-messages`, {
+            headers: {
+                'auth-token': localStorage.getItem('token')
+            }
+        });
+
+        const newMessages = res.data.messages;
+        console.log(newMessages)
+
+        // Combine stored messages and new messages (without duplicates)
+        storedMessages = mergeMessages(storedMessages, newMessages);
+
+        // Step 3: Save only the recent 10 messages to local storage
+        const recentMessages = storedMessages.slice(-10);
+        localStorage.setItem(localStorageKey, JSON.stringify(recentMessages));
+
+        // Step 4: Display the combined messages
+        displayMessages(recentMessages);
+        console.log(recentMessages)
+    } catch (error) {
+        console.error('Error loading group messages:', error);
+    }
+}
+
+function mergeMessages(storedMessages, newMessages) {
+    const allMessages = [...storedMessages];
+
+    newMessages.forEach(newMessage => {
+        if (!storedMessages.some(storedMsg => storedMsg.id === newMessage.id)) {
+            allMessages.push(newMessage);
+        }
+    });
+
+    return allMessages;
+}
+
+function displayMessages(messages) {
+    const messagesContainer = document.querySelector('.chat-messages');
+    messagesContainer.innerHTML = ''; // Clear existing messages
+
+    messages.forEach(message => {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = message.senderId === 'self' ? 'message sent' : 'message received';
+        messageDiv.innerHTML = `<div class="bg-white p-2 rounded shadow-sm"><strong>${message.senderName}:</strong> ${message.message}</div>`;
+        messagesContainer.appendChild(messageDiv);
+    });
+}

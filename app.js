@@ -210,6 +210,43 @@ app.get('/groups', authenticate, async (req, res) => {
     }
 });
 
+app.post('/groups/:groupId/send-message', authenticate, async (req, res) => {
+    try {
+        const { content } = req.body;
+        const groupId = req.params.groupId;
+        const userId = req.user.id;
+
+        // Save the message
+        const newMessage = await Msg.create({
+            message: content, // Assuming your model has 'message'
+            senderName: req.user.name, 
+            groupId,
+            memberId: userId
+        });
+
+        res.json({ success: true, message: newMessage });
+    } catch (error) {
+        console.error('Error sending message:', error);
+        res.status(500).json({ success: false, msg: 'Failed to send message' });
+    }
+});
+
+
+app.get('/groups/:groupId/recent-messages', authenticate, async (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+        const messages = await Msg.findAll({
+            where: { groupId },
+            order: [['createdAt', 'DESC']],
+            limit: 10
+        });
+
+        res.json({ success: true, messages });
+    } catch (error) {
+        console.error('Error fetching messages:', error);
+        res.status(500).json({ success: false, msg: 'Failed to fetch messages' });
+    }
+});
 
 
 Users.belongsToMany(Group , {through : Member})
