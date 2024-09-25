@@ -1,7 +1,7 @@
 const messagesContainer = document.querySelector('.chat-messages');
 const sendButton = document.querySelector('.btn.btn-primary');
 const messageInput = document.getElementById('chatSend');
-window.addEventListener('load', renderElements);
+/* window.addEventListener('load', renderElements);
 
 setInterval(async () => {
     await renderElements();
@@ -69,8 +69,8 @@ function showUser(user) {
     userDiv.className = 'u-joined bg-white p-2 rounded shadow-sm';
     messagesContainer.appendChild(userDiv);
 }
-
-function showMessage(data, isCurrentUser, users) {
+ */
+/* function showMessage(data, isCurrentUser, users) {
     const messageDiv = document.createElement('div');
     if (isCurrentUser) {
         messageDiv.className = 'u-msg bg-white p-2 rounded shadow-sm';
@@ -90,9 +90,9 @@ function showMessage(data, isCurrentUser, users) {
 }
 
 
-sendButton.addEventListener('click', sendMessage);
+sendButton.addEventListener('click', sendMessage); */
 
-async function sendMessage(e) {
+/* async function sendMessage(e) {
     try {
         e.preventDefault();
         const data = { message: messageInput.value };
@@ -109,4 +109,106 @@ async function sendMessage(e) {
     } catch (e) {
         console.error(e);
     }
+} */
+
+const createGroupForm = document.getElementById('createGroupForm');
+const membersList = document.getElementById('membersList');
+const adminList = document.getElementById('adminList');
+
+// Fetch and display users for selection as members/admins
+async function populateGroupForm() {
+    try {
+        const res = await axios.get('http://localhost:4000/user/all-users', {
+            headers: {
+                'auth-token': localStorage.getItem('token')
+            }
+        });
+
+        const users = res.data.users;
+
+        // Clear existing members and admins checkboxes
+        membersList.innerHTML = '';
+        adminList.innerHTML = '';
+
+        // Create checkboxes for each user
+        users.forEach(user => {
+            // Member checkbox
+            const memberCheckbox = document.createElement('input');
+            memberCheckbox.type = 'checkbox';
+            memberCheckbox.value = user.id;
+            memberCheckbox.id = `member-${user.id}`;
+            memberCheckbox.className = 'form-check-input';
+
+            const memberLabel = document.createElement('label');
+            memberLabel.className = 'form-check-label';
+            memberLabel.setAttribute('for', `member-${user.id}`);
+            memberLabel.textContent = user.name;
+
+            const memberDiv = document.createElement('div');
+            memberDiv.className = 'form-check';
+            memberDiv.appendChild(memberCheckbox);
+            memberDiv.appendChild(memberLabel);
+
+            membersList.appendChild(memberDiv);
+
+            // Admin checkbox
+            const adminCheckbox = document.createElement('input');
+            adminCheckbox.type = 'checkbox';
+            adminCheckbox.value = user.id;
+            adminCheckbox.id = `admin-${user.id}`;
+            adminCheckbox.className = 'form-check-input';
+
+            const adminLabel = document.createElement('label');
+            adminLabel.className = 'form-check-label';
+            adminLabel.setAttribute('for', `admin-${user.id}`);
+            adminLabel.textContent = user.name;
+
+            const adminDiv = document.createElement('div');
+            adminDiv.className = 'form-check';
+            adminDiv.appendChild(adminCheckbox);
+            adminDiv.appendChild(adminLabel);
+
+            adminList.appendChild(adminDiv);
+        });
+
+    } catch (error) {
+        console.error('Error fetching users for group creation:', error);
+    }
 }
+
+// Trigger population of members and admins list when the modal is shown
+document.querySelector('[data-bs-target="#createGroupModal"]').addEventListener('click', populateGroupForm);
+
+// Handle group creation form submission
+createGroupForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const groupName = document.getElementById('groupName').value;
+    
+    // Get selected members and admins
+    const selectedMembers = [...document.querySelectorAll('#membersList input:checked')].map(checkbox => checkbox.value);
+    const selectedAdmins = [...document.querySelectorAll('#adminList input:checked')].map(checkbox => checkbox.value);
+
+    try {
+        const response = await axios.post('http://localhost:4000/createGroup', {
+            groupName,
+            members: selectedMembers,
+            admins: selectedAdmins
+        }, {
+            headers: {
+                'auth-token': localStorage.getItem('token')
+            }
+        });
+
+        // Handle success (you might want to display a success message or close the modal)
+        console.log('Group created successfully:', response.data);
+        alert('Group created successfully!');
+
+        // Optionally, reset the form after submission
+        createGroupForm.reset();
+
+    } catch (error) {
+        console.error('Error creating group:', error);
+        alert('Failed to create group. Please try again.');
+    }
+});

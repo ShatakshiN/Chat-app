@@ -16,6 +16,8 @@ app.use(bodyparser.json());
 
 const Users = require('./models/user');
 const Msg = require('./models/msg');
+const Group = require('./models/group');
+const Member = require('./models/member');
 const { Sequelize } = require('sequelize');
 
 function isStrValid(str) {
@@ -173,10 +175,30 @@ app.post('/message/add-message', authenticate, async (req, res, next) => {
     }
 });
 
+app.post('/createGroup', authenticate, async(req,res,next)=>{
+    try{
+        const name = req.body.groupName;
+        // console.log(req.user.name)
+       const group  =await Group.create({name : name , admin : true})
+       const member = await req.user.addGroup(group , {through : {admin : true}})
+       return res.json({group , member})
+    }catch(e){
+        console.log(e)
+        return res.status(500).json({success : false , msg :"Internal server error"})
+    }
+})
 
 
-Msg.belongsTo(Users, { constraints: true, onDelete: 'CASCADE' });
-Users.hasMany(Msg);
+Users.belongsToMany(Group , {through : Member})
+Group.belongsToMany( Users, {through : Member})
+
+Group.hasMany(Msg)
+Msg.belongsTo(Group)
+
+Member.hasMany(Msg)
+Msg.belongsTo(Member)
+
+
 
 sequelize.sync()
     .then(()=>{
