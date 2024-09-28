@@ -210,6 +210,42 @@ app.get('/groups', authenticate, async (req, res) => {
     }
 });
 
+app.get('/groups/:groupId/members', authenticate, async (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+
+        //Step 1: Get all `SignUpId` from `members` where `groupId` matches
+        const signUpIds = await Member.findAll({
+        attributes: ['SignUpId'],
+        where: {
+            groupId: groupId
+        }
+        });
+        // Extracting the ids into an array
+        const signUpIdsArray = signUpIds.map(member => member.SignUpId);
+
+        // Step 2: Get the `name` from `signups` where `id` is in the array
+        const signups = await Users.findAll({
+        attributes: ['name'],
+        where: {
+            id: {
+            [Op.in]: signUpIdsArray
+            }
+        }
+        });
+
+
+        if (!signups) {
+            return res.status(404).json({ success: false, msg: 'Group not found' });
+        }
+        res.json({ success: true, signups });
+    } catch (error) {
+        console.error('Error fetching group members:', error);
+        res.status(500).json({ success: false, msg: 'Failed to fetch group members' });
+    }
+});
+
+
 app.post('/groups/:groupId/send-message', authenticate, async (req, res) => {
     try {
         const { content } = req.body;
@@ -241,12 +277,35 @@ app.get('/groups/:groupId/recent-messages', authenticate, async (req, res) => {
             limit: 10
         });
 
-        res.json({ success: true, messages });
+        // Fetch the group details
+        const group = await Group.findOne({
+            where: { id: groupId },
+            attributes: ['name'] // Adjust this if your group model has different fields
+        });
+
+        if (!group) {
+            return res.status(404).json({ success: false, msg: 'Group not found' });
+        }
+
+
+        // Check if the current user is an admin in the group
+        const member = await Member.findOne({
+            where: { SignUpId: req.user.id, groupId },
+            attributes: ['admin']
+
+        });
+
+        const isAdmin = member ? member.admin : false;
+
+        res.json({ success: true, messages, groupName: group.name, isAdmin });
     } catch (error) {
         console.error('Error fetching messages:', error);
         res.status(500).json({ success: false, msg: 'Failed to fetch messages' });
     }
 });
+
+
+
 
 
 Users.belongsToMany(Group , {through : Member})

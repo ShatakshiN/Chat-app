@@ -3,6 +3,8 @@ const sendButton = document.querySelector('.btn.btn-primary');
 const messageInput = document.getElementById('chatSend');
 let selectedGroupId = null;  // This will store the currently selected group ID
 
+
+
 /* window.addEventListener('load', renderElements);
 
 setInterval(async () => {
@@ -243,6 +245,8 @@ createGroupForm.addEventListener('submit', async (e) => {
             }
         });
 
+        
+
         // Handle success (you might want to display a success message or close the modal)
         console.log('Group created successfully:', response.data);
         alert('Group created successfully!');
@@ -303,7 +307,20 @@ async function loadGroupChat(groupId) {
         });
 
         const newMessages = res.data.messages;
+        const groupName = res.data.groupName; 
+        const isAdmin = res.data.isAdmin;
         console.log(newMessages)
+
+        // Set the group name in the header
+        document.getElementById('groupNameHeader').textContent = groupName;
+
+        // Step 3: Conditionally display the group settings form if the user is an admin
+        const settingsForm = document.getElementById('groupSettingsForm');
+        if (isAdmin) {
+            settingsForm.style.display = 'block';
+        } else {
+            settingsForm.style.display = 'none';
+        }
 
         // Combine stored messages and new messages (without duplicates)
         storedMessages = mergeMessages(storedMessages, newMessages);
@@ -311,6 +328,8 @@ async function loadGroupChat(groupId) {
         // Step 3: Save only the recent 10 messages to local storage
         const recentMessages = storedMessages.slice(-10);
         localStorage.setItem(localStorageKey, JSON.stringify(recentMessages));
+
+        
 
         // Step 4: Display the combined messages
         displayMessages(recentMessages);
@@ -343,3 +362,102 @@ function displayMessages(messages) {
         messagesContainer.appendChild(messageDiv);
     });
 }
+
+async function populateGroupSettingForm(){
+    try {
+        const res = await axios.get('http://localhost:4000/user/all-users', {
+            headers: {
+                'auth-token': localStorage.getItem('token')
+            }
+        });
+
+
+        const users = res.data.users;
+
+        const response = await axios.get(`http://localhost:4000/groups/${selectedGroupId}/members`,{
+            headers: {
+                'auth-token': localStorage.getItem('token')
+            }
+        });
+
+        const groupMember = response.data.signups;
+
+        // Clear existing members and admins checkboxes
+        addMembersList.innerHTML = '';
+        removeMembersList.innerHTML = '';
+        groupAdminsList.innerHTML = '';
+
+        // Create checkboxes for each user
+        users.forEach(user => {
+            // Member checkbox
+            const memberCheckbox = document.createElement('input');
+            memberCheckbox.type = 'checkbox';
+            memberCheckbox.value = user.id;
+            memberCheckbox.id = `member-${user.id}`;
+            memberCheckbox.className = 'form-check-input';
+
+            const memberLabel = document.createElement('label');
+            memberLabel.className = 'form-check-label';
+            memberLabel.setAttribute('for', `member-${user.id}`);
+            memberLabel.textContent = user.name;
+
+            const memberDiv = document.createElement('div');
+            memberDiv.className = 'form-check';
+            memberDiv.appendChild(memberCheckbox);
+            memberDiv.appendChild(memberLabel);
+
+            addMembersList.appendChild(memberDiv);
+            
+        })
+
+        groupMember.forEach(user =>{
+            // Member checkbox
+            const memberCheckbox = document.createElement('input');
+            memberCheckbox.type = 'checkbox';
+            memberCheckbox.value = user.name;
+            memberCheckbox.id = `member-${user.name}`;
+            memberCheckbox.className = 'form-check-input';
+
+            const memberLabel = document.createElement('label');
+            memberLabel.className = 'form-check-label';
+            memberLabel.setAttribute('for', `member-${user.name}`);
+            memberLabel.textContent = user.name;
+
+            const memberDiv = document.createElement('div');
+            memberDiv.className = 'form-check';
+            memberDiv.appendChild(memberCheckbox);
+            memberDiv.appendChild(memberLabel);
+
+            removeMembersList.appendChild(memberDiv);
+            
+
+        })
+
+        groupMember.forEach(i =>{
+             // Member checkbox
+             const memberCheckbox = document.createElement('input');
+             memberCheckbox.type = 'checkbox';
+             memberCheckbox.value = i.name;
+             memberCheckbox.id = `member-${i.name}`;
+             memberCheckbox.className = 'form-check-input';
+ 
+             const memberLabel = document.createElement('label');
+             memberLabel.className = 'form-check-label';
+             memberLabel.setAttribute('for', `member-${i.name}`);
+             memberLabel.textContent = i.name;
+ 
+             const memberDiv = document.createElement('div');
+             memberDiv.className = 'form-check';
+             memberDiv.appendChild(memberCheckbox);
+             memberDiv.appendChild(memberLabel);
+ 
+             groupAdminsList.appendChild(memberDiv);
+        })
+        
+    } catch(error){
+        console.error('Error fetching users for group creation:', error);
+    }
+
+}
+
+document.querySelector('[data-bs-target="#groupSettingsModal"]').addEventListener('click', populateGroupSettingForm);
